@@ -837,18 +837,26 @@ class SearchTool(Tool[SearchToolOverrideKwargs]):
             )
         )
 
-        # Surface the scope to the UI only when it narrows to a strict subset of
-        # the connected sources — scoping to all of them is equivalent to an
-        # unscoped search, so the UI keeps its default "internal documents" label.
+        # Surface the applied filters (source scope + time window) to the UI. Scope
+        # is reported only when it narrows to a strict subset — scoping to all
+        # connected sources is equivalent to an unscoped search.
         scopes_all_sources = bool(connected_sources) and set(
             connected_sources
         ).issubset(resolved_scope or [])
-        if resolved_scope and not scopes_all_sources:
+        emitted_sources = (
+            [source.value for source in resolved_scope]
+            if resolved_scope and not scopes_all_sources
+            else []
+        )
+        time_start, time_end = expansion.time_filter
+        if emitted_sources or time_start is not None or time_end is not None:
             self.emitter.emit(
                 Packet(
                     placement=placement,
                     obj=SearchToolFilterDelta(
-                        sources=[source.value for source in resolved_scope]
+                        sources=emitted_sources,
+                        time_cutoff=time_start,
+                        time_cutoff_upper=time_end,
                     ),
                 )
             )
@@ -878,7 +886,6 @@ class SearchTool(Tool[SearchToolOverrideKwargs]):
 
         # Apply the turn's cached time window. The lower bound composes with any
         # persona time floor downstream in the search pipeline.
-        time_start, time_end = expansion.time_filter
         if time_start is not None or time_end is not None:
             effective_filters = (effective_filters or BaseFilters()).model_copy(
                 update={
