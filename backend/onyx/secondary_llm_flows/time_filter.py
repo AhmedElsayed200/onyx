@@ -1,9 +1,11 @@
 import re
 from datetime import datetime
 from datetime import time
+from datetime import timedelta
 from datetime import timezone
 
 from dateutil.parser import parse
+from dateutil.relativedelta import relativedelta
 
 from onyx.configs.constants import MessageType
 from onyx.llm.interfaces import LLM
@@ -30,8 +32,33 @@ MAX_TIME_FILTER_USER_TURNS = 5
 TimeFilter = tuple[datetime | None, datetime | None]
 
 # Matches the model's "(start, end)" output. Each side is captured as a token
-# (a date or "None"); neither may contain a comma or parenthesis.
+# (a date, a relative "-P<N><unit>" offset, or "None"); neither may contain a
+# comma or parenthesis.
 _TIME_FILTER_PAIR_RE = re.compile(r"\(\s*([^(),]+?)\s*,\s*([^(),]+?)\s*\)")
+
+# A relative offset the model emits for a plain numeric "N units ago" / "last N
+# units" phrasing, as a signed ISO-8601 duration (e.g. "-P15W" = 15 weeks before
+# today). Resolved in code so the model never does the error-prone date
+# arithmetic itself. The leading minus is optional — every offset we accept is in
+# the past. Unit: D=days, W=weeks, M=months, Y=years.
+_RELATIVE_BOUND_RE = re.compile(r"^-?\s*P\s*(\d+)\s*([DWMY])$", re.IGNORECASE)
+
+
+def _resolve_relative_bound(token: str, now: datetime) -> datetime | None:
+    """Resolve a "-P<N><unit>" ISO-8601 duration token to an absolute datetime N
+    units before `now`, or None if the token isn't a relative offset."""
+    match = _RELATIVE_BOUND_RE.match(token)
+    if match is None:
+        return None
+    amount = int(match.group(1))
+    unit = match.group(2).upper()
+    if unit == "D":
+        return now - timedelta(days=amount)
+    if unit == "W":
+        return now - timedelta(weeks=amount)
+    if unit == "M":
+        return now - relativedelta(months=amount)
+    return now - relativedelta(years=amount)
 
 
 def best_match_time(time_str: str) -> datetime | None:
@@ -59,18 +86,26 @@ def best_match_time(time_str: str) -> datetime | None:
         return None
 
 
-def _parse_bound(token: str) -> datetime | None:
-    """Parse one side of the model's pair: a "YYYY-MM-DD" date, or None."""
+def _parse_bound(token: str, now: datetime) -> datetime | None:
+    """Parse one side of the model's pair: a "YYYY-MM-DD" date, a relative
+    "-P<N><unit>" ISO-8601 offset (resolved against `now`), or None."""
     token = token.strip().strip("'\"")
     if token.lower() in ("none", "null"):
         return None
+    relative = _resolve_relative_bound(token, now)
+    if relative is not None:
+        return relative
     return best_match_time(token)
 
 
-def _parse_time_decision(content: str | None) -> TimeFilter:
+def _parse_time_decision(
+    content: str | None, now: datetime | None = None
+) -> TimeFilter:
     """Parse the model's "(start, end)" output into an inclusive (start, end)
-    window. Each side is a "YYYY-MM-DD" date or None. Returns (None, None) on
-    anything unparseable so the caller searches across all time."""
+    window. Each side is a "YYYY-MM-DD" date, a "-P<N><unit>" relative offset,
+    or None. Returns (None, None) on anything unparseable so the caller searches
+    across all time."""
+    now = now or datetime.now(timezone.utc)
     if not content:
         return (None, None)
     # Tolerates code fences / stray text some models wrap the pair in.
@@ -79,10 +114,10 @@ def _parse_time_decision(content: str | None) -> TimeFilter:
         logger.warning("Time filter output was not a (start, end) pair: %s", content)
         return (None, None)
 
-    start = _parse_bound(match.group(1))
+    start = _parse_bound(match.group(1), now)
     # The upper bound is inclusive of the whole named day, so push it to the end
     # of that day before comparing against second-granularity document times.
-    end_day = _parse_bound(match.group(2))
+    end_day = _parse_bound(match.group(2), now)
     end = (
         datetime.combine(end_day.date(), time.max, tzinfo=timezone.utc)
         if end_day
@@ -121,7 +156,8 @@ def decide_time_filter(
         if prior_turns
         else "N/A, this is the first message in the conversation."
     )
-    current_day_time_str = datetime.now(timezone.utc).strftime("%A %B %d, %Y")
+    now = datetime.now(timezone.utc)
+    current_day_time_str = now.strftime("%A %B %d, %Y")
 
     prompt = TIME_SCOPE_DECISION_PROMPT.format(
         current_day_time_str=current_day_time_str,
@@ -143,4 +179,4 @@ def decide_time_filter(
         logger.exception("Time filter decision failed; searching across all time")
         return (None, None)
 
-    return _parse_time_decision(content)
+    return _parse_time_decision(content, now)

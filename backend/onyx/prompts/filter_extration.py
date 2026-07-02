@@ -24,16 +24,17 @@ If no time is referenced, return (None, None).
 
 When a time IS referenced, the phrasing decides the bounds:
 
-- LOWER BOUND ONLY — an open-ended time toward now, including a rolling window ("since \
-March", "in the last 2 weeks", "recently"). Set start; leave end None — a rolling window has \
-no upper bound, so do NOT set end to today.
+- LOWER BOUND ONLY — an open-ended time toward now ("since March", "recently", "in the last \
+2 weeks"). Set start; leave end None — it has no upper bound, so do NOT set end to today.
 
 - UPPER BOUND ONLY — an open-ended time toward the past ("before 2023", "older than \
-January"). Set end; leave start None.
+January", "more than 20 weeks ago"). Set end; leave start None.
 
-- BOTH BOUNDS — a completed, named calendar period ("last January", "Q1 2025", "in 2022", \
-"between March and June", or a single day like "March 25 2024"). Set start and end to its \
-first and last day.
+- BOTH BOUNDS — a completed, named calendar period ("last quarter", "last January", "Q1 \
+2025", "in 2022", "between March and June", a single day like "March 25 2024") or a numeric \
+range ("10 to 15 weeks ago"). A named period is NOT a rolling duration — "last quarter" is \
+the previous calendar quarter (both bounds), not the last 3 months. Set start to its first \
+day / larger offset, end to its last day / smaller offset.
 
 - NO BOUND — a vague preference for fresh results with no actual time ("the latest", "most \
 recent"). Return (None, None).
@@ -44,25 +45,35 @@ recent"). Return (None, None).
 
 ## Current date
 
-Today is {current_day_time_str}. Resolve every time the user refers to against today, into \
-concrete dates yourself.
+Today is {current_day_time_str}. Use a token "-P<N><U>" — a signed ISO-8601 duration where \
+the leading minus means "before today" and U is D=days, W=weeks, M=months, Y=years (e.g. \
+-P15W, -P5M, -P30D) — ONLY for a numeric offset — a number the message states followed by a \
+time unit ("15 weeks ago", "the last 5 months", "30 to 45 days ago"); then never compute the \
+date, the system resolves the token against today. A month or year NAME ("March 2024", "Q1 \
+2025", "2022") is NOT a numeric offset — resolve it to an absolute YYYY-MM-DD date yourself, \
+never a token.
 
 ## Guidance reminder
 
-LOWER / UPPER BOUND: an open-ended time sets one bound and leaves the other None — a rolling \
-window up to now ("the last 2 weeks") leaves end None, not today.
-BOTH BOUNDS: a completed, named calendar period ("last quarter", "in 2022") sets both bounds.
-NEVER filter on a date that names the document's subject/title, and return (None, None) when \
-no time is referenced.
+LOWER / UPPER BOUND: an open-ended time sets one bound and leaves the other None — one \
+toward now ("the last 2 weeks") leaves end None, not today.
+BOTH BOUNDS: a named calendar period ("last quarter", "in 2022") or a numeric range ("10 to \
+15 weeks ago") sets both bounds — a named period is never a rolling duration.
+A month or year NAME is an absolute date, never a token. NEVER filter on a date that names \
+the document's subject/title, and return (None, None) when no time is referenced.
 
 ## Output format
 
-Output ONLY the time filter as a pair: (start, end)
-- start (lower bound) and end (upper bound) are each a date "YYYY-MM-DD" or None; both are \
+Output ONLY the time filter as a pair: (start, end). Each side is a date "YYYY-MM-DD", a \
+token "-P<N><U>" (a signed ISO-8601 duration before today, e.g. -P15W), or None; bounds are \
 inclusive, and None means no bound on that side.
 
 Examples:
-- "in the last 2 weeks" (today is 2026-06-30) → (2026-06-16, None)
+- "in the last 2 weeks" → (-P2W, None)
+- "10 to 15 weeks ago" → (-P15W, -P10W)
+- "more than 20 weeks ago" → (None, -P20W)
+- "in the last 5 months" → (-P5M, None)
+- "since March 2025" → (2025-03-01, None)
 - "before 2023" → (None, 2022-12-31)
 - "in January 2025" → (2025-01-01, 2025-01-31)
 - "the 2020 GDPR docs" → (None, None)
