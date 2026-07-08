@@ -1,0 +1,110 @@
+name: Helm Chart Version Check
+concurrency:
+  group: Helm-Chart-Version-Check-${{ github.workflow }}-${{ github.head_ref || github.event.workflow_run.head_branch || github.run_id }}
+  cancel-in-progress: true
+
+# Requires deployment/helm/charts/onyx/Chart.yaml `version` to be bumped whenever
+# the packaged chart changes. The release workflow (helm-chart-releases.yml)
+# republishes the chart to gh-pages on every push to main, and the chart-releaser
+# tooling will NOT overwrite an already-published version -- so chart changes that
+# reuse an existing version are silently never released. This gate prevents that.
+#
+# Intentionally not path-filtered at the trigger level: this is meant to be a
+# required status check, and a required check that is skipped via `paths` stays
+# stuck "pending" and blocks merges. Instead it always runs and no-ops when no
+# watched files changed.
+on:
+  merge_group:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  helm-chart-version-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      EVENT_NAME: ${{ github.event_name }}
+      PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      MG_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v6
+        with:
+          # Full history so the base/merge-base commit is available to diff against.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require Chart.yaml version bump when chart files change
+        run: |
+          set -euo pipefail
+
+          CHART_FILE="deployment/helm/charts/onyx/Chart.yaml"
+          # A change under any of these paths requires the onyx chart version to bump.
+          # onyx-cnpg-crds is bundled into the onyx chart (pinned via Chart.lock), so
+          # changing it changes what the onyx chart publishes.
+          WATCH_PATHS=(
+            "deployment/helm/charts/onyx/"
+            "deployment/helm/charts/onyx-cnpg-crds/"
+          )
+
+          # Resolve the base commit for this event.
+          case "$EVENT_NAME" in
+            pull_request) BASE_SHA="$PR_BASE_SHA" ;;
+            merge_group)  BASE_SHA="$MG_BASE_SHA" ;;
+            *)            BASE_SHA="$(git rev-parse HEAD^)" ;;
+          esac
+          echo "Event: $EVENT_NAME"
+          echo "Base commit: $BASE_SHA"
+
+          # Diff against the merge-base so we only consider this PR's own changes.
+          if ! MERGE_BASE="$(git merge-base "$BASE_SHA" HEAD 2>/dev/null)"; then
+            MERGE_BASE="$BASE_SHA"
+          fi
+          echo "Merge base: $MERGE_BASE"
+
+          CHANGED="$(git diff --name-only "$MERGE_BASE" HEAD -- "${WATCH_PATHS[@]}")"
+          if [[ -z "$CHANGED" ]]; then
+            echo "No Helm chart files changed. Nothing to check."
+            exit 0
+          fi
+          echo "Changed chart files:"
+          echo "$CHANGED" | sed 's/^/  - /'
+
+          # Top-level `version:` only (dependency versions are indented; appVersion differs).
+          extract_version() {
+            awk '/^version:/ {print $2; exit}' | tr -d "\"'"
+          }
+
+          NEW_VERSION="$(extract_version < "$CHART_FILE" || true)"
+          OLD_VERSION="$(git show "$MERGE_BASE:$CHART_FILE" 2>/dev/null | extract_version || true)"
+
+          echo "Base version: ${OLD_VERSION:-<none>}"
+          echo "PR version:   ${NEW_VERSION:-<none>}"
+
+          SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)*$'
+          if [[ ! "$NEW_VERSION" =~ $SEMVER_RE ]]; then
+            echo "::error file=$CHART_FILE::'version: ${NEW_VERSION:-<empty>}' is not valid semver."
+            exit 1
+          fi
+
+          # Brand-new chart (no version at base): any valid semver is acceptable.
+          if [[ -z "$OLD_VERSION" ]]; then
+            echo "No base version found (new chart). Version '$NEW_VERSION' accepted."
+            exit 0
+          fi
+
+          if [[ "$OLD_VERSION" == "$NEW_VERSION" ]]; then
+            echo "::error file=$CHART_FILE::Helm chart files changed but 'version' is still $NEW_VERSION. Bump it (semver) in $CHART_FILE so the chart re-publishes on merge to main."
+            exit 1
+          fi
+
+          GREATER="$(printf '%s\n%s\n' "$OLD_VERSION" "$NEW_VERSION" | sort -V | tail -n1)"
+          if [[ "$GREATER" != "$NEW_VERSION" ]]; then
+            echo "::error file=$CHART_FILE::Chart version decreased ($OLD_VERSION -> $NEW_VERSION). It must strictly increase."
+            exit 1
+          fi
+
+          echo "Chart version bumped: $OLD_VERSION -> $NEW_VERSION. Check passed."
