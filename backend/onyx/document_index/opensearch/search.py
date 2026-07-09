@@ -43,12 +43,12 @@ from onyx.document_index.opensearch.schema import MAX_CHUNK_SIZE_FIELD_NAME
 from onyx.document_index.opensearch.schema import METADATA_LIST_FIELD_NAME
 from onyx.document_index.opensearch.schema import PERSONAS_FIELD_NAME
 from onyx.document_index.opensearch.schema import PUBLIC_FIELD_NAME
-from onyx.document_index.opensearch.schema import set_or_convert_timezone_to_utc
 from onyx.document_index.opensearch.schema import SOURCE_TYPE_FIELD_NAME
 from onyx.document_index.opensearch.schema import TENANT_ID_FIELD_NAME
 from onyx.document_index.opensearch.schema import TITLE_FIELD_NAME
 from onyx.document_index.opensearch.schema import TITLE_VECTOR_FIELD_NAME
 from onyx.document_index.opensearch.schema import USER_PROJECTS_FIELD_NAME
+from onyx.utils.datetime import datetime_to_utc
 
 # See https://docs.opensearch.org/latest/query-dsl/term/terms/.
 MAX_NUM_TERMS_ALLOWED_IN_TERMS_QUERY = 65_536
@@ -1099,10 +1099,10 @@ class DocumentQuery:
             # document data.
             range_bounds: dict[str, int] = {}
             if time_cutoff is not None:
-                time_cutoff = set_or_convert_timezone_to_utc(time_cutoff)
+                time_cutoff = datetime_to_utc(time_cutoff)
                 range_bounds["gte"] = int(time_cutoff.timestamp())
             if time_cutoff_upper is not None:
-                time_cutoff_upper = set_or_convert_timezone_to_utc(time_cutoff_upper)
+                time_cutoff_upper = datetime_to_utc(time_cutoff_upper)
                 range_bounds["lte"] = int(time_cutoff_upper.timestamp())
 
             # Logical OR operator on its elements.

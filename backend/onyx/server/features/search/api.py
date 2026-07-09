@@ -11,7 +11,6 @@ directly — a lighter-weight flow with optional query expansion.
 """
 
 import json
-from datetime import timezone
 from typing import cast
 
 from fastapi import APIRouter
@@ -50,6 +49,7 @@ from onyx.tools.constants import SEARCH_TOOL_ID
 from onyx.tools.models import ChatMinimalTextMessage
 from onyx.tools.models import SearchToolOverrideKwargs
 from onyx.tools.tool_implementations.search.search_tool import SearchTool
+from onyx.utils.datetime import datetime_to_utc
 from shared_configs.contextvars import get_current_tenant_id
 
 router = APIRouter(prefix="/search")
@@ -127,8 +127,8 @@ def search(
     # contract; we apply it here so downstream comparison against tz-aware
     # document timestamps works.
     time_cutoff = request.time_cutoff
-    if time_cutoff is not None and time_cutoff.tzinfo is None:
-        time_cutoff = time_cutoff.replace(tzinfo=timezone.utc)
+    if time_cutoff is not None:
+        time_cutoff = datetime_to_utc(time_cutoff)
 
     base_filters = BaseFilters(
         source_type=request.sources,
