@@ -53,7 +53,7 @@ import AgentAvatar from "@/refresh-components/avatars/AgentAvatar";
 import useUsers from "@/hooks/useUsers";
 import { toast } from "@/hooks/useToast";
 import { UserRole } from "@/lib/types";
-import Modal from "@/refresh-components/Modal";
+import { Modal } from "@opal/components";
 import { getProvider } from "@/lib/languageModels";
 
 // ─── DisplayNameField ────────────────────────────────────────────────────────

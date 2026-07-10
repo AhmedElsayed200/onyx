@@ -15,7 +15,7 @@ import {
 import { IllustrationContent } from "@opal/layouts";
 import SvgNoResult from "@opal/illustrations/no-result";
 import { toast } from "@/hooks/useToast";
-import ConfirmationModalLayout from "@/refresh-components/layouts/ConfirmationModalLayout";
+import { ConfirmationModalLayout } from "@opal/components";
 import {
   SvgClock,
   SvgPlus,

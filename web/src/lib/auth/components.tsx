@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useSessionWatcher } from "@/lib/auth/hooks";
 import { getExtensionContext } from "@/lib/extension/utils";
-import Modal from "@/refresh-components/Modal";
+import { Modal } from "@opal/components";
 import { Button, Text } from "@opal/components";
 import { SvgLogOut } from "@opal/icons";
 

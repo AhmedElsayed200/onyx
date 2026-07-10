@@ -42,7 +42,7 @@ import SwitchField from "@/refresh-components/form/SwitchField";
 import { Tooltip } from "@opal/components";
 import { useDocumentSets } from "@/app/admin/documents/sets/hooks";
 import { useProjectsContext } from "@/providers/ProjectsContext";
-import { useCreateModal } from "@/refresh-components/contexts/ModalContext";
+import { useCreateModal } from "@opal/components";
 import { toast } from "@/hooks/useToast";
 import UserFilesModal from "@/sections/modals/UserFilesModal";
 import { ProjectFile, UserFileStatus } from "@/lib/projects/types";
@@ -91,7 +91,7 @@ import {
 } from "@/lib/agents/svc";
 import { useTierAtLeast } from "@/hooks/useTierAtLeast";
 import { Tier } from "@/lib/settings/types";
-import ConfirmationModalLayout from "@/refresh-components/layouts/ConfirmationModalLayout";
+import { ConfirmationModalLayout } from "@opal/components";
 import ShareAgentModal, {
   ShareDraftState,
 } from "@/sections/modals/ShareAgentModal";

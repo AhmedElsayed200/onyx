@@ -21,7 +21,7 @@ import {
   buildCCPairInfoUrl,
   buildSimilarCredentialInfoURL,
 } from "@/app/admin/connector/[ccPairId]/lib";
-import Modal from "@/refresh-components/Modal";
+import { Modal } from "@opal/components";
 import EditCredential from "./actions/EditCredential";
 import { getSourceDisplayName } from "@/lib/sources";
 import {

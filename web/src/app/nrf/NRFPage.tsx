@@ -7,7 +7,7 @@ import { toast } from "@/hooks/useToast";
 import { AuthType } from "@/lib/constants";
 import AppInputBar, { AppInputBarHandle } from "@/sections/input/AppInputBar";
 import { Button } from "@opal/components";
-import Modal from "@/refresh-components/Modal";
+import { Modal } from "@opal/components";
 import { useFilters, useLlmManager } from "@/lib/hooks";
 import Dropzone from "react-dropzone";
 import { useSendMessageToParent, getPanelOrigin } from "@/lib/extension/utils";

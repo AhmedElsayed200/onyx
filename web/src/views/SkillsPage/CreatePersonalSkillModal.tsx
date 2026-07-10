@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Button, Text } from "@opal/components";
 import { SvgUploadCloud } from "@opal/icons";
-import Modal from "@/refresh-components/Modal";
+import { Modal } from "@opal/components";
 import { Section } from "@/layouts/general-layouts";
 import { createCustomSkill } from "@/lib/skills/api";
 import { toast } from "@/hooks/useToast";

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
-import Modal from "@/refresh-components/Modal";
+import { Modal } from "@opal/components";
 import { InputVertical } from "@opal/layouts";
 import InputTypeInField from "@/refresh-components/form/InputTypeInField";
 import InputTextAreaField from "@/refresh-components/form/InputTextAreaField";
@@ -13,10 +13,10 @@ import {
   MCPServerStatus,
   MCPServer,
 } from "@/lib/tools/interfaces";
-import { useModal } from "@/refresh-components/contexts/ModalContext";
+import { useModal } from "@opal/components";
 import { Button, Divider } from "@opal/components";
 import { toast } from "@/hooks/useToast";
-import { ModalCreationInterface } from "@/refresh-components/contexts/ModalContext";
+import type { ModalCreationInterface } from "@opal/components";
 import { SvgCheckCircle, SvgServer, SvgUnplug } from "@opal/icons";
 import { Section } from "@/layouts/general-layouts";
 import Text from "@/refresh-components/texts/Text";

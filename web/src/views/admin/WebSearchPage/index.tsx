@@ -7,7 +7,7 @@ import ProviderCard from "@/sections/admin/ProviderCard";
 import { FetchError } from "@/lib/fetcher";
 import { PageLoader } from "@/refresh-components/PageLoader";
 import { useWebSearchProviders } from "@/lib/webSearch/hooks";
-import { useCreateModal } from "@/refresh-components/contexts/ModalContext";
+import { useCreateModal } from "@opal/components";
 import { toast } from "@/hooks/useToast";
 import { SvgGlobe } from "@opal/icons";
 import { SvgOnyxLogo } from "@opal/logos";

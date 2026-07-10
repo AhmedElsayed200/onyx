@@ -5,7 +5,7 @@ import { useState } from "react";
 import { SvgUserSync } from "@opal/icons";
 import { toast } from "@/hooks/useToast";
 import { useScimToken } from "@/hooks/useScimToken";
-import { useCreateModal } from "@/refresh-components/contexts/ModalContext";
+import { useCreateModal } from "@opal/components";
 import { SettingsLayouts } from "@opal/layouts";
 import Text from "@/refresh-components/texts/Text";
 import { PageLoader } from "@/refresh-components/PageLoader";
