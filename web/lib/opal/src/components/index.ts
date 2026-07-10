@@ -140,6 +140,12 @@ export {
   type TagItem,
 } from "@opal/components/inputs/input-tags/components";
 
+/* InputTextArea */
+export {
+  InputTextArea,
+  type InputTextAreaProps,
+} from "@opal/components/inputs/input-text-area/components";
+
 /* Spacer */
 export { Spacer, type SpacerProps } from "@opal/components/spacer/components";
 
