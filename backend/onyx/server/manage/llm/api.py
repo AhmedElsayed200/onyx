@@ -53,7 +53,6 @@ from onyx.llm.factory import get_max_input_tokens_from_llm_provider
 from onyx.llm.model_name_parser import parse_litellm_model_name
 from onyx.llm.utils import get_bedrock_token_limit
 from onyx.llm.utils import get_llm_contextual_cost
-from onyx.llm.utils import get_max_input_tokens
 from onyx.llm.utils import is_sensitive_custom_config_key
 from onyx.llm.utils import litellm_thinks_model_supports_image_input
 from onyx.llm.utils import model_is_reasoning_model
@@ -2191,10 +2190,10 @@ def get_openai_available_models(
                 OpenAIFinalModelResponse(
                     name=model_id,
                     display_name=display_name,
-                    max_input_tokens=get_max_input_tokens(
-                        model_name=model_id,
-                        model_provider=LlmProviderNames.OPENAI,
-                    ),
+                    # OpenAI's /v1/models response does not include context
+                    # length; leave None so runtime resolves it via litellm
+                    # (self-heals for models litellm doesn't know yet).
+                    max_input_tokens=None,
                     supports_image_input=(
                         litellm_thinks_model_supports_image_input(
                             model_id, LlmProviderNames.OPENAI
@@ -2352,10 +2351,10 @@ def get_anthropic_available_models(
                 AnthropicFinalModelResponse(
                     name=model_id,
                     display_name=display_name,
-                    max_input_tokens=get_max_input_tokens(
-                        model_name=model_id,
-                        model_provider=LlmProviderNames.ANTHROPIC,
-                    ),
+                    # Anthropic's /v1/models response does not include context
+                    # length; leave None so runtime resolves it via litellm
+                    # (self-heals for models litellm doesn't know yet).
+                    max_input_tokens=None,
                     supports_image_input=(
                         litellm_thinks_model_supports_image_input(
                             model_id, LlmProviderNames.ANTHROPIC

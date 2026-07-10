@@ -586,7 +586,8 @@ class TestGetOpenAIAvailableModels:
             assert gpt_4o.supports_image_input is True
             assert gpt_4o.supports_reasoning is False
             assert o1.supports_reasoning is True
-            assert gpt_4o.max_input_tokens > 0
+            # Context length deferred to runtime litellm lookup
+            assert gpt_4o.max_input_tokens is None
 
     def test_syncs_to_db_when_provider_id_specified(
         self, mock_openai_response: dict
@@ -853,7 +854,8 @@ class TestGetAnthropicAvailableModels:
             # From litellm metadata
             assert sonnet.supports_image_input is True
             assert sonnet.supports_reasoning is True
-            assert sonnet.max_input_tokens > 0
+            # Context length deferred to runtime litellm lookup
+            assert sonnet.max_input_tokens is None
             # Haiku 3.5 has no litellm entry; vision comes from the
             # claude-3 family fallback in infer_vision_support
             assert haiku.supports_image_input is True
