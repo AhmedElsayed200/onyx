@@ -42,6 +42,9 @@ srl = SlackRateLimiter()
 
 RT = TypeVar("RT")  # return type
 
+SLACK_PERSONA_ACCESS_DENIED_MESSAGE = "You don't have access to the Agent that the bot is configured with in this channel."
+SLACK_PERSONA_PRIVATE_RESPONSE_UNAVAILABLE_MESSAGE = "I can't answer with the Agent configured for this channel because I couldn't identify the Slack sender."
+
 
 def resolve_channel_references(
     message: str,
@@ -200,6 +203,96 @@ def handle_regular_answer(
         document_set_names = [
             document_set.name for document_set in persona.document_sets
         ]
+
+    try:
+        with get_session_with_current_tenant() as db_session:
+            get_persona_by_id(
+                persona_id=persona.id,
+                user=user,
+                db_session=db_session,
+                is_for_edit=False,
+            )
+        has_persona_access = True
+    except ValueError:
+        has_persona_access = False
+
+    if not has_persona_access:
+        logger.info(
+            "Skipping Slack answer: user does not have access to persona %s",
+            persona.id,
+        )
+
+        if not message_info.is_bot_dm and message_info.sender_id:
+            access_denied_receiver_ids = [message_info.sender_id]
+        else:
+            access_denied_receiver_ids = None
+            if not message_info.is_bot_dm:
+                logger.warning(
+                    "Unable to send ephemeral Slack persona access denial: missing Slack sender ID"
+                )
+
+        try:
+            respond_in_thread_or_channel(
+                client=client,
+                channel=channel,
+                receiver_ids=access_denied_receiver_ids,
+                text=SLACK_PERSONA_ACCESS_DENIED_MESSAGE,
+                thread_ts=target_thread_ts,
+                send_as_ephemeral=access_denied_receiver_ids is not None,
+            )
+        except Exception:
+            logger.exception("Unable to send Slack persona access denial")
+
+        if feedback_reminder_id and message_info.sender_id:
+            try:
+                client.chat_deleteScheduledMessage(
+                    channel=message_info.sender_id,
+                    scheduled_message_id=feedback_reminder_id,
+                )
+            except Exception:
+                logger.exception(
+                    "Unable to delete scheduled feedback reminder after Slack persona access denial"
+                )
+
+        if not is_slash_command:
+            update_emote_react(
+                emoji=ONYX_BOT_REACT_EMOJI,
+                channel=message_info.channel_to_respond,
+                message_ts=message_info.msg_to_respond,
+                remove=True,
+                client=client,
+            )
+        return False
+
+    if not persona.is_public and not message_info.is_bot_dm:
+        if message_info.sender_id:
+            target_receiver_ids = [message_info.sender_id]
+        else:
+            logger.warning(
+                "Unable to answer with restricted Slack persona: missing Slack sender ID"
+            )
+            try:
+                respond_in_thread_or_channel(
+                    client=client,
+                    channel=channel,
+                    receiver_ids=None,
+                    text=SLACK_PERSONA_PRIVATE_RESPONSE_UNAVAILABLE_MESSAGE,
+                    thread_ts=target_thread_ts,
+                    send_as_ephemeral=False,
+                )
+            except Exception:
+                logger.exception(
+                    "Unable to send restricted Slack persona missing-sender response"
+                )
+            if not is_slash_command:
+                update_emote_react(
+                    emoji=ONYX_BOT_REACT_EMOJI,
+                    channel=message_info.channel_to_respond,
+                    message_ts=message_info.msg_to_respond,
+                    remove=True,
+                    client=client,
+                )
+            return False
 
     user_message = messages[-1]
     history_messages = messages[:-1]
