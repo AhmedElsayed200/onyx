@@ -152,6 +152,13 @@ export {
   type TagItem,
 } from "@opal/components/inputs/input-tags/components";
 
+/* InputTime */
+export {
+  InputTime,
+  type InputTimeProps,
+  type TimeValue,
+} from "@opal/components/inputs/input-time/components";
+
 /* Spacer */
 export { Spacer, type SpacerProps } from "@opal/components/spacer/components";
 
